@@ -54,10 +54,19 @@ double lb_tempo(lb_link *l) {
   return t;
 }
 
-lb_state *lb_capture(lb_link *l) {
+lb_state *lb_state_create(void) {
   lb_state *s = new lb_state{};
   s->s = abl_link_create_session_state();
+  return s;
+}
+
+void lb_capture_into(lb_link *l, lb_state *s) {
   abl_link_capture_audio_session_state(l->h, s->s);
+}
+
+lb_state *lb_capture(lb_link *l) {
+  lb_state *s = lb_state_create();
+  lb_capture_into(l, s);
   return s;
 }
 
@@ -76,6 +85,14 @@ int64_t lb_time_at_beat(lb_state *s, double beat, double quantum) {
 }
 
 int64_t lb_clock_micros(lb_link *l) { return abl_link_clock_micros(l->h); }
+
+double lb_state_tempo(lb_state *s) { return abl_link_tempo(s->s); }
+
+void lb_enable_start_stop_sync(lb_link *l, bool on) {
+  abl_link_enable_start_stop_sync(l->h, on);
+}
+
+bool lb_state_is_playing(lb_state *s) { return abl_link_is_playing(s->s); }
 
 // --- sink ---
 
@@ -221,6 +238,7 @@ static void lb_source_cb(const abl_link_audio_source_buffer *buf, void *context)
 lb_source *lb_source_create(lb_link *l, uint64_t channel_id_u64) {
   lb_source *s = new lb_source{};
   s->link = l->h;
+  s->pop_buf.reserve(16384 * 2); // so pops on the audio thread never grow it
   abl_link_audio_channel_id id;
   memcpy(id.bytes, &channel_id_u64, 8);
   s->h = abl_link_audio_source_create(l->h, id, lb_source_cb, s);
@@ -234,6 +252,18 @@ void lb_source_destroy(lb_source *s) {
 }
 
 bool lb_source_pop(lb_source *s, lb_source_buffer *out, double quantum) {
+  if (s->chunk_head.load(std::memory_order_relaxed) ==
+      s->chunk_tail.load(std::memory_order_acquire))
+    return false;
+  lb_state st;
+  st.s = abl_link_create_session_state();
+  abl_link_capture_audio_session_state(s->link, st.s);
+  bool ok = lb_source_pop_at(s, out, quantum, &st);
+  abl_link_destroy_session_state(st.s);
+  return ok;
+}
+
+bool lb_source_pop_at(lb_source *s, lb_source_buffer *out, double quantum, lb_state *st) {
   uint32_t ch = s->chunk_head.load(std::memory_order_relaxed);
   uint32_t ct = s->chunk_tail.load(std::memory_order_acquire);
   if (ch == ct) return false;
@@ -242,8 +272,6 @@ bool lb_source_pop(lb_source *s, lb_source_buffer *out, double quantum) {
   // don't map — begin_beat 0 tells the consumer to skip them).
   double beginBeat = 0;
   {
-    abl_link_session_state ss = abl_link_create_session_state();
-    abl_link_capture_audio_session_state(s->link, ss);
     abl_link_audio_source_buffer_info info;
     info.num_channels = c.num_channels;
     info.num_frames = c.num_frames;
@@ -252,10 +280,9 @@ bool lb_source_pop(lb_source *s, lb_source_buffer *out, double quantum) {
     info.session_beat_time = c.session_beat_time;
     info.tempo = c.tempo;
     info.session_id = c.session_id;
-    abl_link_audio_source_buffer_info_begin_beats(&info, ss, quantum, &beginBeat);
-    abl_link_destroy_session_state(ss);
+    abl_link_audio_source_buffer_info_begin_beats(&info, st->s, quantum, &beginBeat);
   }
-  s->pop_buf.resize(c.num_frames * 2);
+  s->pop_buf.resize(c.num_frames * 2); // Link buffers fit the reserve from create: no allocation
   for (size_t i = 0; i < c.num_frames; i++) {
     uint32_t idx = (c.frame_start + i) % kRingFrames;
     s->pop_buf[2 * i] = s->data[2 * idx];

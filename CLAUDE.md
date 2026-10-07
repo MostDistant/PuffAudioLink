@@ -77,6 +77,13 @@ plugins/                  WAIL Send / WAIL Receive CLAP plugins for DAWs without
 │                         (scripts/minidaw-e2e.sh: recv plugin ⇄ real app ⇄ relay)
 └── CMakeLists.txt        Builds both .clap bundles
 
+rack/                     "Most Distant" VCV Rack 2 plugin: Link Clock, Link Audio Send/Receive/Receive 16.
+│                         Each module is its own LAN Link (Audio) peer, reusing plugins/wail_link.
+│                         Build: RACK_DIR=<Rack-SDK> make (needs vendor/link); `make test` = pure timing tests
+├── src/                  Modules + FrameClock (engine frame ↔ Link µs) + StampAligner/RecvSlot (recv
+│                         playout) + RoomSlots (Receive 16 slot assignment, port of wail_recv.c)
+└── test/                 Host-compiled unit tests (no Rack SDK / Link)
+
 vendor/
 ├── link/                 Ableton Link 4.0 SDK (git submodule, pinned to Link-4.0)
 └── clap/                 CLAP SDK headers (git submodule, pinned to 1.2.10) for the bridge plugins
