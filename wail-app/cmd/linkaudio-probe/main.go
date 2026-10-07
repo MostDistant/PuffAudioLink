@@ -49,6 +49,11 @@ type chanState struct {
 	// envelopes for cross-correlation against the reference channel.
 	rmsRing  []float64
 	tempoBPM float64
+
+	// onset analysis (when -onsets is set): beat-grid phase (ms) of each click
+	// onset this tick, and the silence run-length that arms the detector.
+	onsetMs  []float64
+	quietRun int
 }
 
 func main() {
@@ -57,6 +62,7 @@ func main() {
 	bpi := flag.Float64("bpi", 0, "if >0, also report the shared-grid interval index of received audio (beat mapped at this beats-per-interval lens; must match the room's BPI)")
 	offsetRef := flag.String("offset-ref", "", "if set, report per-channel onset phase offset in ms vs the channel whose name contains this substring (e.g. \"Metronome\")")
 	offsetDump := flag.String("offset-dump", "", "if set (and -offset-ref), write ref+channel RMS envelopes as CSVs to this directory on exit")
+	onsets := flag.Bool("onsets", false, "report per-channel click-onset phase vs the beat grid (ms; 0 = on the beat) — checks that a publisher stamps clicks on the beats it rendered them for")
 	flag.Parse()
 	matchLower := strings.ToLower(*match)
 	offsetRefLower := strings.ToLower(*offsetRef)
@@ -68,7 +74,7 @@ func main() {
 	defer l.Close()
 
 	var ss *abllink.SessionState
-	if *bpi > 0 || *offsetRef != "" {
+	if *bpi > 0 || *offsetRef != "" || *onsets {
 		ss = abllink.NewSessionState()
 	}
 
@@ -144,8 +150,15 @@ func main() {
 						// Map the buffer's begin onto the shared session grid at
 						// the BPI lens (the interval grid is session-shared,
 						// ADR-0003) and bin its frames by interval index.
-						if bb, ok := st.src.BeginBeats(&buf, ss, *bpi); ok {
-							st.gridFrames[int64(math.Floor(bb / *bpi))] += buf.NumFrames
+						if *bpi > 0 {
+							if bb, ok := st.src.BeginBeats(&buf, ss, *bpi); ok {
+								st.gridFrames[int64(math.Floor(bb / *bpi))] += buf.NumFrames
+							}
+						}
+						if *onsets {
+							if bb, ok := st.src.BeginBeats(&buf, ss, 4); ok {
+								st.observeOnsets(&buf, bb)
+							}
 						}
 					}
 					if g := st.loss.Observe(buf.Count); g != nil {
@@ -211,13 +224,59 @@ func main() {
 						}
 						grid = fmt.Sprintf("  grid=%d", bestG)
 					}
-					log.Printf("[%s · %s] %d buf  %d fr  %dch@%dHz  rms=%.0f  ~%.0f Hz%s  lost=%d",
-						st.peer, st.name, st.buffers, st.frames, st.channels, st.sampleRate, rms, freq, grid, st.loss.LostBuffers())
+					onset := ""
+					if len(st.onsetMs) > 0 {
+						lo, hi := st.onsetMs[0], st.onsetMs[0]
+						for _, v := range st.onsetMs {
+							lo, hi = math.Min(lo, v), math.Max(hi, v)
+						}
+						onset = fmt.Sprintf("  onsets=%d phase=%+.2f ms [%+.2f, %+.2f]", len(st.onsetMs), medianHist(st.onsetMs), lo, hi)
+					}
+					log.Printf("[%s · %s] %d buf  %d fr  %dch@%dHz  rms=%.0f  ~%.0f Hz%s%s  lost=%d",
+						st.peer, st.name, st.buffers, st.frames, st.channels, st.sampleRate, rms, freq, grid, onset, st.loss.LostBuffers())
 				}
 				st.buffers, st.frames, st.sumSq, st.zeroCross = 0, 0, 0, 0
 				st.gridFrames = map[int64]int{}
+				st.onsetMs = st.onsetMs[:0]
 			}
 		}
+	}
+}
+
+// --- Onset analysis ---
+
+// onsetThreshold is the |sample| a click must exceed; onsetQuietFrames is how
+// long the channel must sit below it first (~10 ms @48k), so one click is one
+// onset however it rings.
+const (
+	onsetThreshold   = 3000
+	onsetQuietFrames = 480
+)
+
+// observeOnsets finds click onsets in one buffer and records each one's phase
+// against the nearest beat, in ms, using the buffer's begin beat on our
+// session timeline and its tempo.
+func (st *chanState) observeOnsets(buf *abllink.CaptureBuffer, beginBeat float64) {
+	ch := buf.NumChannels
+	if ch < 1 {
+		ch = 1
+	}
+	if buf.SampleRate == 0 || buf.TempoBPM <= 0 {
+		return
+	}
+	beatsPerFrame := buf.TempoBPM / 60.0 / float64(buf.SampleRate)
+	for i := 0; i < buf.NumFrames && i*ch < len(buf.Samples); i++ {
+		v := buf.Samples[i*ch]
+		if v < onsetThreshold && v > -onsetThreshold {
+			st.quietRun++
+			continue
+		}
+		if st.quietRun >= onsetQuietFrames {
+			beat := beginBeat + float64(i)*beatsPerFrame
+			phase := beat - math.Floor(beat+0.5)
+			st.onsetMs = append(st.onsetMs, phase*60000.0/buf.TempoBPM)
+		}
+		st.quietRun = 0
 	}
 }
 
