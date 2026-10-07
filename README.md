@@ -37,6 +37,10 @@ Two requirements: your DAW must load **CLAP** plugins (Bitwig, REAPER, Studio On
 
 On the Windows, macOS (dmg), and Linux release builds the plugins auto-install on first launch into your per-user CLAP folder (`%LOCALAPPDATA%\Programs\Common\CLAP` / `~/.clap`); if that's blocked, copy the `.clap` bundles from the release's `lib/` folder there yourself and rescan. On Homebrew, run `wail-install-plugins`.
 
+### VCV Rack modules (preview)
+
+`rack/` holds a VCV Rack 2 plugin — **Link Clock**, **Link Audio Send**, **Link Audio Receive** and **Link Audio Receive 16** — that makes Rack a Link Audio citizen. Patch a Send to share Rack audio with the room through WAIL; drop in a Receive 16 and every room stream appears on its own named stereo slot. Not in the VCV Library yet: build it with the Rack SDK (`rack/README.md`). The modules work without WAIL too, as plain Link / Link Audio tools on your LAN.
+
 ## Getting Started
 
 1. **Launch the WAIL app.**

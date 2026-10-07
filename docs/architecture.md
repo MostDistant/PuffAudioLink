@@ -129,6 +129,12 @@ For DAWs that are Link *sync* peers but lack Link Audio (Live pre-12.3, Bitwig-c
 
 The C-facing Link session/audio API the plugins compile against (`plugins/wail_link.{h,cpp}`) mirrors the app's own `internal/abllink/wrap.cpp`.
 
+### VCV Rack modules (`rack/`, "Most Distant")
+
+The same pattern in VCV Rack 2: every module is its own LAN Link (Audio) peer compiled against `plugins/wail_link`, with no room intelligence. **Link Clock** turns the Link timeline into clock/bar/run CV; **Link Audio Send** publishes a Rack input as a channel the app captures; **Link Audio Receive** plays one channel (Auto = first `WAIL · ` room channel); **Link Audio Receive 16** is the WAIL Receive equivalent — `RoomSlots` is a port of its id-keyed slot manager, sixteen named stereo slots plus polyphonic outputs. Rack has no host transport and renders in bursts, so `FrameClock` maps engine frames to Link µs from block-start observations (`Engine::getBlockFrame`); stamps, clock edges and playout targets all use *play time* (frame time + one engine block + a device-latency constant), and receive playout honours stamps exactly when early (room channels) and grows a max-hold delay when late (live LAN channels). See `rack/README.md` and `tradeoffs.md` → "VCV Rack Link Audio modules".
+
+`wail-app/cmd/wailcore` is a packaging spike toward running the WAIL client *inside* Rack: the Go code built with `-buildmode=c-archive` and linked into the plugin as one binary, called only from Rack's UI thread. Not yet a session — the engine still lives in `package main`.
+
 > **History:** ADR-0005 shipped a different bridge under the same bundle IDs (`software.wail.send`/`software.wail.recv`, reused here) — raw PCM moved to and from the app over loopback TCP. Its floor was structural (the DAW's block pull bounded delivery lead), so ADR-0007 superseded it and the IPC path was removed. See `docs/adr/0005-clap-thin-pcm-bridge.md` for the reasoning.
 
 ### Wire Format (AudioFrameWire / WAIF)

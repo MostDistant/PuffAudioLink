@@ -1,0 +1,61 @@
+{
+  "slug": "MostDistant",
+  "name": "Most Distant",
+  "version": "2.6.0",
+  "license": "MIT",
+  "brand": "Most Distant",
+  "author": "Most Distant",
+  "authorEmail": "",
+  "authorUrl": "",
+  "pluginUrl": "",
+  "manualUrl": "",
+  "sourceUrl": "",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": [
+    {
+      "slug": "LinkClock",
+      "name": "Link Clock",
+      "description": "Ableton Link tempo/beat/start-stop transport as a clock, bar reset, and run gate.",
+      "tags": [
+        "Clock generator",
+        "Clock modulator",
+        "External"
+      ]
+    },
+    {
+      "slug": "LinkAudioReceive",
+      "name": "Link Audio Receive",
+      "description": "Play an Ableton Link Audio channel (e.g. a WAIL room stream) into Rack, aligned to its beat stamps.",
+      "tags": [
+        "External"
+      ]
+    },
+    {
+      "slug": "LinkAudioReceive16",
+      "name": "Link Audio Receive 16",
+      "description": "Every WAIL room stream at once: 16 named stereo slots that fill themselves, plus polyphonic outputs.",
+      "tags": [
+        "External",
+        "Polyphonic",
+        "Mixer"
+      ]
+    },
+    {
+      "slug": "LinkAudioSend",
+      "name": "Link Audio Send",
+      "description": "Publish a Rack stereo input as an Ableton Link Audio channel WAIL (or any Link Audio app) can hear.",
+      "tags": [
+        "External"
+      ]
+    },
+    {
+      "slug": "WAIL",
+      "name": "WAIL",
+      "description": "The WAIL client inside Rack (embedded core; packaging spike — no session yet).",
+      "tags": [
+        "External"
+      ]
+    }
+  ]
+}

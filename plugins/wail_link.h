@@ -118,9 +118,23 @@ double lb_tempo(lb_link *l);
 typedef struct lb_state lb_state;
 lb_state *lb_capture(lb_link *l);
 void lb_release(lb_state *s);
+// Allocation-free capture for a strict realtime thread: create the state once
+// off the audio thread (lb_state_create allocates), then lb_capture_into it per
+// block. lb_capture is create + capture_into in one call (it allocates).
+lb_state *lb_state_create(void);
+void lb_capture_into(lb_link *l, lb_state *s);
 double lb_beat_at_time(lb_state *s, int64_t micros, double quantum);
 int64_t lb_time_at_beat(lb_state *s, double beat, double quantum);
 int64_t lb_clock_micros(lb_link *l);
+// Tempo of an already-captured state (realtime-safe; lb_tempo is not — it
+// captures the app-side state, which may block).
+double lb_state_tempo(lb_state *s);
+
+// Start/stop transport sync. Enable so play/stop follows the session's peers;
+// query it realtime-safe from an already-captured state (lb_state_is_playing).
+// Used by the VCV Rack Link Clock (rack/), not the CLAP plugins.
+void lb_enable_start_stop_sync(lb_link *l, bool on);
+bool lb_state_is_playing(lb_state *s);
 
 // --- Link Audio sink (publishing; Send plugin) ---
 // Commit is realtime-safe (the SDK's retain/commit is designed for the audio
@@ -164,6 +178,9 @@ typedef struct {
                                     // (cross-session buffer) — skip it
 } lb_source_buffer;
 bool lb_source_pop(lb_source *s, lb_source_buffer *out, double quantum);
+// lb_source_pop_at maps begin_beat against a state the caller already captured
+// (lb_capture_into) — no allocation per pop. lb_source_pop captures its own.
+bool lb_source_pop_at(lb_source *s, lb_source_buffer *out, double quantum, lb_state *st);
 
 #ifdef __cplusplus
 }
