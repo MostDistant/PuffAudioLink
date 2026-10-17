@@ -40,7 +40,13 @@
 set -eo pipefail
 
 PORT="${TIER2_PORT:-8899}"
-BPM="${TIER2_BPM:-240}"                 # higher BPM ⇒ shorter intervals ⇒ audio flows sooner
+# 120 BPM ⇒ 8s intervals. The step-mode placement vote needs several clean
+# probe seconds per interval (the probe reports once a second and the straddle
+# second after each boundary is skipped); at 240 BPM a 4s interval leaves ~2,
+# so boundaries abstain and the verdict flakes. Until the founder-tempo fix the
+# room ran at 120 regardless (the relay's default replaced the founder's BPM),
+# which is the rate the ADR-0009 placement check was validated at.
+BPM="${TIER2_BPM:-120}"
 MODE="${TIER2_MODE:-step}"              # step = interval placement check; sweep = integrity only
 BPI="${TIER2_BPI:-16}"                  # room beats-per-interval (app default: 4 bars × 4)
 # The interval offset D is retired (ADR-0009): playout is adaptive — each
