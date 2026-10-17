@@ -48,6 +48,7 @@
         'set_metronome': 'main.App.SetMetronome',
         'set_metronome_broadcast': 'main.App.SetMetronomeBroadcast',
         'set_cushion_ms': 'main.App.SetCushionMs',
+        'set_remember_enabled': 'main.App.SetRememberEnabled',
         'debug_room': 'main.App.DebugRoom',
         'is_debug_mode': 'main.App.IsDebugMode',
         'rename_stream': 'main.App.RenameStream',
@@ -75,6 +76,7 @@
         'set_metronome': ['enabled'],
         'set_metronome_broadcast': ['enabled'],
         'set_cushion_ms': ['ms'],
+        'set_remember_enabled': ['enabled'],
         'debug_room': ['displayName', 'linkAudioName'],
     };
 
