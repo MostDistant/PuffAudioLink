@@ -654,6 +654,19 @@ func sessionLoop(
 
 			case "PeerListReceived":
 				peers.SeedLastSeen()
+				logInfo("Joined room with %d peer(s)", ev.PeerCount)
+				if ev.PeerCount == 0 {
+					// Founding an empty room: assert tempo + interval config so the
+					// relay can anchor the room clock now. Without an anchor the
+					// engine has no room labels and releases nothing — a solo peer
+					// monitoring their own loopback would hear silence.
+					// currentBPM, not the join-time bpm: on a reconnect into a room
+					// that emptied meanwhile, re-founding must not revert a tempo
+					// change made during the session.
+					foundedRoom = true
+					declareTempo(currentBPM)
+					mesh.Broadcast(NewIntervalConfig(intervalCfg.Bars, intervalCfg.Quantum))
+				}
 
 			case "UpdateStreamsError":
 				// The relay kept the OLD count; arm a retry so a freed slot heals
@@ -661,16 +674,6 @@ func sessionLoop(
 				streamUpdateRejected = true
 				streamUpdateRetryAt = time.Now().Add(streamUpdateRetryBackoff)
 				logWarn("[signaling] relay rejected stream update (%s, %d slots available) — retrying in %s", ev.Code, ev.SlotsAvailable, streamUpdateRetryBackoff)
-				logInfo("Joined room with %d peer(s)", ev.PeerCount)
-				if ev.PeerCount == 0 {
-					// Founding an empty room: assert tempo + interval config so the
-					// relay can anchor the room clock now. Without an anchor the
-					// engine has no room labels and releases nothing — a solo peer
-					// monitoring their own loopback would hear silence.
-					foundedRoom = true
-					declareTempo(bpm)
-					mesh.Broadcast(NewIntervalConfig(intervalCfg.Bars, intervalCfg.Quantum))
-				}
 			}
 
 		case <-sigClosedCh:
