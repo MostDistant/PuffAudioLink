@@ -1,12 +1,12 @@
-# WAIL — WAN Audio Interchange for Link
+# PuffAudioLink
 
-WAIL synchronizes [Ableton Link](https://www.ableton.com/link/) sessions across the internet using a WebSocket relay server. Musicians on different networks can sync tempo, phase, and interval boundaries as if they were on the same LAN, with intervalic audio (NINJAM-style) captured, Opus-encoded, and transmitted via the server.
+PuffAudioLink (formerly WAIL — WAN Audio Interchange for Link) synchronizes [Ableton Link](https://www.ableton.com/link/) sessions across the internet using a WebSocket relay server. Musicians on different networks can sync tempo, phase, and interval boundaries as if they were on the same LAN, with intervalic audio (NINJAM-style) captured, Opus-encoded, and transmitted via the server. The desktop app, its binaries, and its plugins still carry the WAIL name, so you'll see "WAIL" throughout the app and these docs.
 
 WAIL is an Ableton **Link Audio** peer — it captures and plays audio directly over Link, so with a Link-Audio-capable DAW there are no WAIL plugins to install. Ableton Live 12.3+ supports Link Audio natively. For any other CLAP-capable DAW, load the first-party **WAIL Send** and **WAIL Receive** CLAP plugins (bundled with the app — see below), which bring Link Audio into hosts that don't speak it yet.
 
 ## Install
 
-Download the latest release from the [Releases page](https://github.com/MostDistant/WAIL/releases).
+Download the latest release from the [Releases page](https://github.com/MostDistant/PuffAudioLink/releases).
 
 **macOS (download, Apple Silicon)** — Download `wail-macos-arm64-<version>.dmg` from the Releases page, open it, and drag **WAIL.app** into Applications. The app is not notarized, so on first launch right-click the app and choose **Open** (Gatekeeper), then confirm — after that it launches normally. The CLAP plugins auto-install on first launch into `~/.clap`.
 
